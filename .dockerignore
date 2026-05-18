@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.git
+.gitignore
+.venv/
+venv/
+mlruns/
+mlflow_artifacts/
+wandb/
+*.ipynb

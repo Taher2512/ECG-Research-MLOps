@@ -1,5 +1,6 @@
 import importlib
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -7,8 +8,20 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
+def _install_torch_stub(monkeypatch):
+    fake_torch = types.ModuleType("torch")
+    fake_nn = types.ModuleType("torch.nn")
+    fake_nn.Module = object
+    fake_torch.nn = fake_nn
+
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    monkeypatch.setitem(sys.modules, "torch.nn", fake_nn)
+
+
 @pytest.fixture
 def client(monkeypatch):
+    _install_torch_stub(monkeypatch)
+
     import app.model
 
     class DummyModel:
@@ -57,3 +70,14 @@ def test_predict_rejects_wrong_length_signal(client):
 
     assert response.status_code == 400
     assert "180 samples" in response.json()["detail"]
+
+
+def test_batch_predict_returns_one_result_per_input(client):
+    payload = [{"signal": [0.0] * 180}, {"signal": [0.1] * 180}]
+
+    response = client.post("/batch", json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 2
+    assert all(item["predicted_class"] in {"Normal", "APC", "VTach"} for item in body)

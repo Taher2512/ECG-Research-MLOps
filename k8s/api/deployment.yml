@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: ecg-api
-          image: taher2512/ecg-arrhythmia-api:a7af142
+          image: taher2512/ecg-arrhythmia-api:18242a6
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000

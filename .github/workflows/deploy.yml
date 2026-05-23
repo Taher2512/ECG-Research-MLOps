@@ -19,20 +19,39 @@ jobs:
   build-and-push:
     needs: test
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v3
-      - name: Build Docker Image
-        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/ecg-api:${{ github.sha }} .
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/ecg-arrhythmia-api
+          tags: type=sha,prefix=
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-#   deploy:
-#     needs: build-and-push
-#     runs-on: ubuntu-latest
-#     steps:
-#         - name: Deploy to Server
-#           run: |
-#             ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-#               cd /path/to/your/app
-#               docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ecg-api:${{ github.sha }}
-#               docker-compose down
-#               docker-compose up -d
-#             EOF
+  update-k8s-manifest:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update image tag in deployment manifest
+        run: |
+          NEW_TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          sed -i "s|image: .*ecg-arrhythmia-api:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ecg-arrhythmia-api:${NEW_TAG}|" \
+            k8s/api/deployment.yml
+      - name: Commit updated manifest
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add k8s/api/deployment.yml
+          git commit -m "ci: update api image to ${{ needs.build-and-push.outputs.image_tag }}"
+          git push

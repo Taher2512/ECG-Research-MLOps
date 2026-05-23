@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: ecg-mlops
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+
+    scrape_configs:
+      - job_name: "ecg-api"
+        static_configs:
+          - targets: ["ecg-api-service.ecg-mlops.svc.cluster.local:80"]
+
+      - job_name: "kubernetes-pods"
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ["ecg-mlops"]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: (.+)
+            replacement: $1

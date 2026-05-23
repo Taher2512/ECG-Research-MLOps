@@ -1,0 +1,25 @@
+adminPassword: "ecgadmin" # change this
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-service.ecg-mlops.svc.cluster.local:9090
+        isDefault: true
+
+persistence:
+  enabled: true
+  size: 2Gi
+
+service:
+  type: ClusterIP
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"

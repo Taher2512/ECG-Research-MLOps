@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from app.model import CLASS_NAMES, SIGNAL_LENGTH, load_model, predict
 from app.schemas import ECGInput, PredictionOutput
 
-MODEL_PATH = os.getenv("MODEL_PATH", "ecg-mlops/models/best_finetuned_model.pth")
+MODEL_PATH = os.getenv("MODEL_PATH", "/app/models/best_finetuned_model.pth")
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v3")
 
 app = FastAPI(title="ECG Arrhythmia Detection API", version="1.0")

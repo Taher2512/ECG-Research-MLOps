@@ -22,11 +22,12 @@ spec:
       containers:
         - name: ecg-api
           image: taher2512/ecg-arrhythmia-api:348ebb7
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           env:
             - name: MODEL_PATH
-              value: "/models/best_finetuned_model.pth"
+              value: "/app/models/best_finetuned_model.pth"
             - name: MODEL_VERSION
               valueFrom:
                 configMapKeyRef:

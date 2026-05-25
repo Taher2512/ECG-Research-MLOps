@@ -58,3 +58,11 @@ spec:
                 name: grafana
                 port:
                   number: 80
+
+          - path: /()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ecg-frontend-service
+                port:
+                  number: 80

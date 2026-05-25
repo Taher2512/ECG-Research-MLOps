@@ -1,13 +1,24 @@
 # ECG MLOps
 
-ECG arrhythmia detection project with:
+ECG arrhythmia detection platform with:
 
-- FastAPI inference service
+- FastAPI inference API
+- Next.js frontend powered by Bun
 - MLflow for experiment tracking
 - Prometheus and Grafana for monitoring
-- NGINX Ingress for routing
-- Argo CD for GitOps deployment
-- Kubernetes manifests for local development on `kind`
+- Argo CD for GitOps
+- Kubernetes manifests for local deployment on Kind
+
+## What Runs Here
+
+- `app/`: Python API and model loading
+- `frontend/`: Next.js dashboard and prediction UI
+- `k8s/api/`: API deployment, service, HPA, config
+- `k8s/frontend/`: Frontend deployment and service
+- `k8s/mlflow/`: MLflow deployment, service, PVC
+- `k8s/monitoring/`: Prometheus and Grafana config
+- `k8s/argocd/`: Argo CD application manifest
+- `k8s/ingress.yml`: NGINX ingress routes
 
 ## Prerequisites
 
@@ -17,30 +28,20 @@ Install these tools before starting:
 - `kubectl`
 - `kind`
 - `helm`
+- `bun`
 - `git`
 
-This setup also assumes:
+This setup assumes:
 
-- you have a Kind cluster config file named `clusters.yml` in the repo root
-- you want to use a local Kind cluster named `local`
-- the Docker image tag in [k8s/api/deployment.yml](/Applications/AI/ecg-mlops/k8s/api/deployment.yml:1) points to an image that exists in Docker Hub
+- you have a Kind config file named `clusters.yml` in the repo root
+- you want to run a local Kind cluster named `local`
+- the API image tag in [k8s/api/deployment.yml](/Applications/AI/ecg-mlops/k8s/api/deployment.yml:1) exists in Docker Hub
+- the frontend image tag in [k8s/frontend/deployment.yml](/Applications/AI/ecg-mlops/k8s/frontend/deployment.yml:1) exists in Docker Hub
 
-If you want to use the ingress hostname locally, add this entry to `/etc/hosts`:
+If you want the ingress host locally, add this to `/etc/hosts`:
 
 ```bash
 127.0.0.1 ecg.local
-```
-
-## Project Structure
-
-```text
-app/                  FastAPI app and model loading logic
-models/               Model checkpoint
-k8s/api/              API deployment, service, HPA, config
-k8s/mlflow/           MLflow deployment, service, PVC
-k8s/monitoring/       Prometheus and Grafana config
-k8s/argocd/           Argo CD application manifest
-k8s/ingress.yml       NGINX ingress routes
 ```
 
 ## Start Locally
@@ -68,7 +69,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 kubectl apply -f k8s/argocd/application.yml
 ```
 
-### 4. Open the Argo CD UI and get the initial password
+### 4. Open Argo CD and get the initial password
 
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443 &
@@ -84,7 +85,7 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo update
 ```
 
-### 6. Deploy the ECG API
+### 6. Deploy the API
 
 ```bash
 kubectl apply -f k8s/api/configmap.yml
@@ -93,7 +94,14 @@ kubectl apply -f k8s/api/service.yml
 kubectl apply -f k8s/api/hpa.yml
 ```
 
-### 7. Deploy MLflow
+### 7. Deploy the frontend
+
+```bash
+kubectl apply -f k8s/frontend/deployment.yml
+kubectl apply -f k8s/frontend/service.yml
+```
+
+### 8. Deploy MLflow
 
 ```bash
 kubectl apply -f k8s/mlflow/pvc.yml
@@ -101,7 +109,7 @@ kubectl apply -f k8s/mlflow/deployment.yml
 kubectl apply -f k8s/mlflow/service.yml
 ```
 
-### 8. Deploy monitoring
+### 9. Deploy monitoring
 
 ```bash
 kubectl apply -f k8s/monitoring/prometheus-configmap.yml
@@ -113,13 +121,13 @@ helm install grafana grafana/grafana \
   --values k8s/monitoring/grafana-values.yml
 ```
 
-### 9. Deploy ingress
+### 10. Deploy ingress
 
 ```bash
 kubectl apply -f k8s/ingress.yml
 ```
 
-### 10. Verify workloads
+### 11. Verify workloads
 
 ```bash
 kubectl get pods -n ecg-mlops
@@ -127,24 +135,25 @@ kubectl get services -n ecg-mlops
 kubectl get ingress -n ecg-mlops
 ```
 
-### 11. Expose local ports
+### 12. Port-forward local service access
 
-Run these in the background or in separate terminals:
+Run these in the background or separate terminals:
 
 ```bash
+kubectl port-forward svc/ecg-frontend-service -n ecg-mlops 3000:80 &
 kubectl port-forward svc/ecg-api-service -n ecg-mlops 8000:80 &
 kubectl port-forward svc/mlflow-service -n ecg-mlops 5001:5000 &
 kubectl port-forward svc/prometheus-service -n ecg-mlops 9090:9090 &
 ```
 
-Forward Grafana using the pod name:
+Forward Grafana on `3001` so it does not conflict with the frontend:
 
 ```bash
 export GRAFANA_POD=$(kubectl get pods --namespace ecg-mlops \
   -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" \
   -o jsonpath="{.items[0].metadata.name}")
 
-kubectl port-forward --namespace ecg-mlops $GRAFANA_POD 3000:3000 &
+kubectl port-forward --namespace ecg-mlops $GRAFANA_POD 3001:3000 &
 ```
 
 Get the Grafana admin password:
@@ -157,7 +166,7 @@ kubectl get secret --namespace ecg-mlops grafana \
 Expose the ingress controller locally:
 
 ```bash
-kubectl port-forward --namespace=ingress-nginx \
+kubectl port-forward --namespace ingress-nginx \
   service/ingress-nginx-controller 8081:80 &
 ```
 
@@ -165,21 +174,49 @@ kubectl port-forward --namespace=ingress-nginx \
 
 | Service | URL | Notes |
 | --- | --- | --- |
-| Argo CD UI | https://localhost:8080 | GitOps dashboard — sync and monitor deployments |
-| ECG API docs | http://localhost:8000/docs | FastAPI interactive docs — test predictions here |
-| ECG API health | http://localhost:8000/health | Model version + status |
-| ECG API predict | http://localhost:8000/predict | POST endpoint for ECG classification |
-| MLflow UI | http://localhost:5001 | Experiment runs, model registry, artifacts |
+| Argo CD UI | https://localhost:8080 | GitOps dashboard to sync and inspect resources |
+| Frontend UI | http://localhost:3000 | Main ECG dashboard and prediction workflow |
+| ECG API docs | http://localhost:8000/docs | FastAPI interactive docs |
+| ECG API health | http://localhost:8000/health | Model version and API health |
+| ECG API predict | http://localhost:8000/predict | POST endpoint for ECG beat classification |
+| MLflow UI | http://localhost:5001 | Experiments, artifacts, and model tracking |
 | Prometheus | http://localhost:9090 | Raw metrics query interface |
-| Grafana | http://localhost:3000 | Monitoring dashboards — login: `admin` / see password step above |
-| Via Ingress | http://ecg.local:8081/api | All API routes via nginx ingress controller |
-| Via Ingress | http://ecg.local:8081/mlflow | MLflow via ingress |
-| Via Ingress | http://ecg.local:8081/prometheus | Prometheus via ingress |
-| Via Ingress | http://ecg.local:8081/grafana | Grafana via ingress |
+| Grafana | http://localhost:3001 | Monitoring dashboards. Login: `admin` and the password from the secret command above |
+| Via Ingress | http://ecg.local:8081/ | Frontend through nginx ingress |
+| Via Ingress | http://ecg.local:8081/api | All API routes through ingress |
+| Via Ingress | http://ecg.local:8081/mlflow | MLflow through ingress |
+| Via Ingress | http://ecg.local:8081/prometheus | Prometheus through ingress |
+| Via Ingress | http://ecg.local:8081/grafana | Grafana through ingress |
+
+## Frontend Local Development
+
+If you want to work on the frontend outside Kubernetes:
+
+```bash
+cd frontend
+bun install
+bun run dev
+```
+
+The frontend will run on `http://localhost:3000` and proxy `/api/*` requests to `http://localhost:8000` by default, so keep the API port-forward running on `8000`.
+
+## CI/CD Pipeline
+
+The GitHub Actions workflow now does all of the following:
+
+- runs Python API tests
+- builds the frontend with Bun
+- builds and pushes the API Docker image
+- builds and pushes the frontend Docker image
+- updates [k8s/api/deployment.yml](/Applications/AI/ecg-mlops/k8s/api/deployment.yml:1) and [k8s/frontend/deployment.yml](/Applications/AI/ecg-mlops/k8s/frontend/deployment.yml:1) with the latest SHA tags
+
+Argo CD then syncs the Kubernetes manifests from the `k8s/` directory recursively.
+
+## Git Notes
+
+There is no nested Git repository inside `frontend/` right now. Git sees it as a normal folder inside the main repo, so it can be committed as part of this project without creating a Git submodule link.
 
 ## Optional Git Workflow
-
-If you want to commit and push changes after local setup:
 
 ```bash
 git add .
@@ -192,24 +229,34 @@ git push
 
 ### Port already in use
 
-If a port-forward fails because the port is already busy:
+If a port-forward fails because a local port is already busy:
 
 ```bash
-lsof -nP -iTCP:8080 -sTCP:LISTEN
+lsof -nP -iTCP:3000 -sTCP:LISTEN
 kill <PID>
 ```
 
-You can do the same for `5001`, `8000`, `9090`, `3000`, or `8081`.
+Use the same pattern for ports `3001`, `5001`, `8000`, `8080`, `8081`, or `9090`.
 
 ### Port-forward stops immediately
 
-That usually means the target pod is crashing. Check:
+That usually means the target pod is restarting or crashing:
 
 ```bash
 kubectl get pods -n ecg-mlops
 kubectl logs -n ecg-mlops <pod-name>
 kubectl describe pod -n ecg-mlops <pod-name>
 ```
+
+### Refresh Argo CD view
+
+If Argo CD looks incomplete, make sure the application is synced and refreshed after manifest changes:
+
+```bash
+kubectl apply -f k8s/argocd/application.yml
+```
+
+Then refresh the app in the Argo CD UI.
 
 ### Recreate everything from scratch
 
@@ -218,4 +265,4 @@ killall kubectl
 kind delete cluster -n local
 ```
 
-Then follow the setup steps again from the top.
+Then rerun the setup steps from the top.

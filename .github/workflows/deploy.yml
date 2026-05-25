@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  test:
+  api-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -19,8 +19,22 @@ jobs:
       - run: pip install -r requirements.txt
       - run: pytest tests/
 
-  build-and-push:
-    needs: test
+  frontend-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+        working-directory: frontend
+      - run: bun run build
+        working-directory: frontend
+
+  build-and-push-api:
+    needs:
+      - api-test
+      - frontend-check
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
@@ -40,26 +54,61 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  build-and-push-frontend:
+    needs:
+      - api-test
+      - frontend-check
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/ecg-arrhythmia-frontend
+          tags: type=sha,prefix=
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: frontend
+          file: frontend/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
   update-k8s-manifest:
-    needs: build-and-push
+    needs:
+      - build-and-push-api
+      - build-and-push-frontend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Update image tag in deployment manifest
+      - name: Update image tags in deployment manifests
         run: |
-          NEW_TAG="${{ needs.build-and-push.outputs.image_tag }}"
-          sed -i "s|image: .*ecg-arrhythmia-api:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ecg-arrhythmia-api:${NEW_TAG}|" \
+          API_TAG="${{ needs.build-and-push-api.outputs.image_tag }}"
+          FRONTEND_TAG="${{ needs.build-and-push-frontend.outputs.image_tag }}"
+          sed -i "s|image: .*ecg-arrhythmia-api:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ecg-arrhythmia-api:${API_TAG}|" \
             k8s/api/deployment.yml
+          sed -i "s|image: .*ecg-arrhythmia-frontend:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ecg-arrhythmia-frontend:${FRONTEND_TAG}|" \
+            k8s/frontend/deployment.yml
       - name: Commit updated manifest
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add k8s/api/deployment.yml
-          git commit -m "ci: update api image to ${{ needs.build-and-push.outputs.image_tag }}"
+          git add k8s/api/deployment.yml k8s/frontend/deployment.yml
+          git commit -m "ci: update images to api ${{ needs.build-and-push-api.outputs.image_tag }} and frontend ${{ needs.build-and-push-frontend.outputs.image_tag }}"
           git push

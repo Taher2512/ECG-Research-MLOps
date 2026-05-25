@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecg-frontend
+  namespace: ecg-mlops
+  labels:
+    app: ecg-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ecg-frontend
+  template:
+    metadata:
+      labels:
+        app: ecg-frontend
+    spec:
+      containers:
+        - name: ecg-frontend
+          image: taher2512/ecg-arrhythmia-frontend:a82beea
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: INTERNAL_API_TARGET
+              value: "http://ecg-api-service.ecg-mlops.svc.cluster.local:8000"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "150m"
+            limits:
+              memory: "512Mi"
+              cpu: "300m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 5

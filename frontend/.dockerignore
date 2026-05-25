@@ -1,0 +1,7 @@
+.git
+.next
+node_modules
+.DS_Store
+README.md
+AGENTS.md
+CLAUDE.md

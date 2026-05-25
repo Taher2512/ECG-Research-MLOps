@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: ecg-frontend
-          image: taher2512/ecg-arrhythmia-frontend:a82beea
+          image: taher2512/ecg-arrhythmia-frontend:6c6b038
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000

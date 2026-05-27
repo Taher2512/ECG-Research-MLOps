@@ -88,25 +88,19 @@ helm repo update
 ### 6. Deploy the API
 
 ```bash
-kubectl apply -f k8s/api/configmap.yml
-kubectl apply -f k8s/api/deployment.yml
-kubectl apply -f k8s/api/service.yml
-kubectl apply -f k8s/api/hpa.yml
+kubectl apply -f k8s/api/
 ```
 
 ### 7. Deploy the frontend
 
 ```bash
-kubectl apply -f k8s/frontend/deployment.yml
-kubectl apply -f k8s/frontend/service.yml
+kubectl apply -f k8s/frontend/
 ```
 
 ### 8. Deploy MLflow
 
 ```bash
-kubectl apply -f k8s/mlflow/pvc.yml
-kubectl apply -f k8s/mlflow/deployment.yml
-kubectl apply -f k8s/mlflow/service.yml
+kubectl apply -f k8s/mlflow/
 ```
 
 ### 9. Deploy monitoring
@@ -172,21 +166,21 @@ kubectl port-forward --namespace ingress-nginx \
 
 ## Local Service Endpoints
 
-| Service | URL | Notes |
-| --- | --- | --- |
-| Argo CD UI | https://localhost:8080 | GitOps dashboard to sync and inspect resources |
-| Frontend UI | http://localhost:3000 | Main ECG dashboard and prediction workflow |
-| ECG API docs | http://localhost:8000/docs | FastAPI interactive docs |
-| ECG API health | http://localhost:8000/health | Model version and API health |
-| ECG API predict | http://localhost:8000/predict | POST endpoint for ECG beat classification |
-| MLflow UI | http://localhost:5001 | Experiments, artifacts, and model tracking |
-| Prometheus | http://localhost:9090 | Raw metrics query interface |
-| Grafana | http://localhost:3001 | Monitoring dashboards. Login: `admin` and the password from the secret command above |
-| Via Ingress | http://ecg.local:8081/ | Frontend through nginx ingress |
-| Via Ingress | http://ecg.local:8081/api | All API routes through ingress |
-| Via Ingress | http://ecg.local:8081/mlflow | MLflow through ingress |
-| Via Ingress | http://ecg.local:8081/prometheus | Prometheus through ingress |
-| Via Ingress | http://ecg.local:8081/grafana | Grafana through ingress |
+| Service         | URL                              | Notes                                                                                |
+| --------------- | -------------------------------- | ------------------------------------------------------------------------------------ |
+| Argo CD UI      | https://localhost:8080           | GitOps dashboard to sync and inspect resources                                       |
+| Frontend UI     | http://localhost:3000            | Main ECG dashboard and prediction workflow                                           |
+| ECG API docs    | http://localhost:8000/docs       | FastAPI interactive docs                                                             |
+| ECG API health  | http://localhost:8000/health     | Model version and API health                                                         |
+| ECG API predict | http://localhost:8000/predict    | POST endpoint for ECG beat classification                                            |
+| MLflow UI       | http://localhost:5001            | Experiments, artifacts, and model tracking                                           |
+| Prometheus      | http://localhost:9090            | Raw metrics query interface                                                          |
+| Grafana         | http://localhost:3001            | Monitoring dashboards. Login: `admin` and the password from the secret command above |
+| Via Ingress     | http://ecg.local:8081/           | Frontend through nginx ingress                                                       |
+| Via Ingress     | http://ecg.local:8081/api        | All API routes through ingress                                                       |
+| Via Ingress     | http://ecg.local:8081/mlflow     | MLflow through ingress                                                               |
+| Via Ingress     | http://ecg.local:8081/prometheus | Prometheus through ingress                                                           |
+| Via Ingress     | http://ecg.local:8081/grafana    | Grafana through ingress                                                              |
 
 ## Frontend Local Development
 

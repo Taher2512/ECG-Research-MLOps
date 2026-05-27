@@ -1,4 +1,4 @@
-adminPassword: "ecgadmin" # change this
+adminPassword: "ecgadmin"
 
 datasources:
   datasources.yaml:
